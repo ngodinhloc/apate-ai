@@ -16,6 +16,7 @@ export class ConversationEndedHandler implements EventHandler {
     const conversation = event.data;
     if (!conversation?.conversationId || !conversation.messages) {
       this.logger.warn('ConversationEndedHandler.handle: malformed event', {
+        conversationId: conversation?.conversationId,
         payload,
       });
       return;

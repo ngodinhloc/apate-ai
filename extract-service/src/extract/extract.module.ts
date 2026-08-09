@@ -1,14 +1,15 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module';
-import { AnthropicModule } from '../anthropic/anthropic.module';
+import { LlmModule } from '../llm/llm.module';
 import { ExtractController } from './controllers/extract.controller';
 import { ExtractService } from './services/extract.service';
-import { ExtractCronService } from './services/extract-cron.service';
+import { CronService } from './services/cron.service';
+import { ObjectValidator } from './services/object.validator';
 
 @Module({
-  imports: [DatabaseModule, AnthropicModule],
+  imports: [DatabaseModule, LlmModule],
   controllers: [ExtractController],
-  providers: [ExtractService, ExtractCronService],
+  providers: [ExtractService, CronService, ObjectValidator],
   exports: [ExtractService],
 })
 export class ExtractModule {}

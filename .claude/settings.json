@@ -5,7 +5,17 @@
       "Read(//Users/kenngo/Documents/Projects/**)",
       "Bash(cd /Users/kenngo/Documents/Projects/architect-multi-agent && find . -maxdepth 2 -not -path '*/node_modules*' -not -path '*/.git*' | sort)",
       "Read(//Users/kenngo/Documents/Projects/architect-multi-agent/**)",
-      "Bash(npm --version)"
+      "Bash(npm --version)",
+      "Bash(xargs sed -i '' 's/getFormat/getDescription/g')",
+      "Bash(npx ts-node -e ' *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('jest',{}\\), indent=2\\)\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\), indent=2\\)\\); print\\(json.dumps\\(d.get\\('jest',{}\\), indent=2\\)\\); print\\('jest' in d.get\\('devDependencies',{}\\), 'ts-jest' in d.get\\('devDependencies',{}\\)\\)\")",
+      "Bash(npx jest *)",
+      "Bash(npx nest *)",
+      "Bash(rm /Users/kenngo/Documents/Projects/apate-ai/extract-service/tsconfig.tsbuildinfo *)"
+    ],
+    "additionalDirectories": [
+      "/Users/kenngo/Documents/Projects/apate-ai/extract-service"
     ]
   }
 }

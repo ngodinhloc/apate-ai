@@ -5,7 +5,7 @@ import { MessageProcessor } from './message.processor';
 import {
   EVENT_CONVERSATION_ENDED,
   EXCHANGE_APATE,
-  QUEUE_CONVERSATION_ENDED,
+  EXTRACT_SERVICE_QUEUE,
 } from '../../extract/contracts/extract.interface';
 
 @Injectable()
@@ -21,7 +21,7 @@ export class RabbitMqConsumer implements OnModuleInit {
     ];
 
     await this.rabbitMQService.subscribe(
-      QUEUE_CONVERSATION_ENDED,
+      EXTRACT_SERVICE_QUEUE,
       bindings,
       (payload, eventName) =>
         this.messageProcessor.process({ ...payload, eventName }),

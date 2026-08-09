@@ -4,11 +4,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { AppLogger } from '../../common/logger/services/app-logger';
 import { ConversationEntity } from '../../database/entities/conversation.entity';
-import { ExtractStatusEnum } from '../contracts/extract.interface';
+import {
+  ExtractConversationInput,
+  ExtractStatusEnum,
+} from '../contracts/extract.interface';
 import { ExtractService } from './extract.service';
 
 @Injectable()
-export class ExtractCronService {
+export class CronService {
   constructor(
     private readonly logger: AppLogger,
     private readonly extractService: ExtractService,
@@ -19,32 +22,43 @@ export class ExtractCronService {
   @Cron(CronExpression.EVERY_MINUTE)
   async handleCron(): Promise<void> {
     const claimed = await this.claimNewConversations();
-    if (claimed.length === 0) return;
+    if (claimed.length === 0) {
+      this.logger.log('CronService.handleCron: no NEW conversations to claim');
+      return;
+    }
 
-    this.logger.log('ExtractCronService.handleCron: claimed conversations', {
+    this.logger.log('CronService.handleCron: claimed conversations', {
       count: claimed.length,
+      conversationIds: claimed.map((c) => c.uuid),
     });
 
-    await Promise.all(
-      claimed.map((conversation) => this.processClaimed(conversation)),
-    );
+    await this.processBatch(claimed);
   }
 
-  private async processClaimed(
-    conversation: ConversationEntity,
+  /** One Claude call covers every conversation claimed this run, instead of one call each. */
+  private async processBatch(
+    conversations: ConversationEntity[],
   ): Promise<void> {
     try {
-      await this.extractService.processClaimed(conversation);
+      const inputs: ExtractConversationInput[] = conversations.map((c) => ({
+        conversationId: c.uuid,
+        messages: c.messages,
+        scamProbability: c.scamProbability,
+        status: c.status,
+        createdAt: c.createdAt,
+        modifiedAt: c.modifiedAt,
+      }));
+      await this.extractService.processBatch(inputs);
     } catch (error) {
-      this.logger.error(
-        'ExtractCronService.processClaimed: extraction failed',
-        {
-          conversationId: conversation.uuid,
-          error: error instanceof Error ? error.message : String(error),
-        },
+      this.logger.error('CronService.processBatch: extraction failed', {
+        conversationIds: conversations.map((c) => c.uuid),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Release the whole batch so a later run retries it — we can't tell
+      // which conversation(s) caused a batch-level failure.
+      await Promise.all(
+        conversations.map((c) => this.extractService.resetToNew(c.uuid)),
       );
-      // Release the claim so a later run retries this conversation.
-      await this.extractService.resetToNew(conversation.uuid);
     }
   }
 

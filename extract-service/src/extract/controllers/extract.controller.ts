@@ -15,7 +15,7 @@ export class ExtractController {
 
   @Post()
   process(@Body() dto: ExtractInputDto) {
-    return this.extractService.processAll(dto);
+    return this.extractService.extractAll(dto);
   }
 
   @Get(':uuid')

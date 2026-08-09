@@ -3,62 +3,42 @@ import Anthropic from '@anthropic-ai/sdk';
 import { AppLogger } from '../../common/logger/services/app-logger';
 import { EnvService } from '../../common/env/services/env.service';
 import { ChatSender, Message } from '../../chat/contracts/chat.interface';
-import { SCAM_BAITER_PERSONA } from '../personas/scam-baiter.persona';
+import { SCAM_BAITER_PERSONA } from '../templates/scam-baiter.persona';
+import { AGENT_REPLY_SCHEMA } from '../templates/scam-baiter.schema';
+import {
+  AdapterInterface,
+  AgentReply,
+  SupportedModels,
+} from '../contracts/llm.interface';
 
-const MODEL = 'claude-haiku-4-5-20251001';
 const FALLBACK_REPLY =
   "Sorry, my phone's playing up — can you send that again in a sec?";
 
-/** What Claude returns per turn; chat-service fills in conversationId to build the full ChatResponse. */
-export interface AgentReply {
-  text: string;
-  scamProbability: number;
-}
-
-const REPLY_SCHEMA = {
-  type: 'object',
-  properties: {
-    text: {
-      type: 'string',
-      description: "The agent's in-character reply to send to the scammer.",
-    },
-    scamProbability: {
-      type: 'number',
-      description:
-        'Likelihood, from 0 to 1, that the other party is a scammer, based on the full conversation so far.',
-    },
-  },
-  required: ['text', 'scamProbability'],
-  additionalProperties: false,
-} as const;
-
 @Injectable()
-export class ChatAgentService {
+export class AnthropicAdapter implements AdapterInterface {
   private readonly client: Anthropic;
 
   constructor(
-    private readonly logger: AppLogger,
     envService: EnvService,
+    private readonly logger: AppLogger,
   ) {
     this.client = new Anthropic({ apiKey: envService.getAnthropicApiKey() });
   }
 
-  async reply(history: Message[]): Promise<AgentReply> {
+  async reply(conversationId: string, history: Message[]): Promise<AgentReply> {
     const response = await this.client.messages.create({
-      model: MODEL,
-      max_tokens: 1024,
+      model: SupportedModels.CLAUDE_HAIKU_4_5,
       system: SCAM_BAITER_PERSONA,
+      max_tokens: 1024,
+      messages: this.buildMessages(history),
       output_config: {
-        format: { type: 'json_schema', schema: REPLY_SCHEMA },
+        format: { type: 'json_schema', schema: AGENT_REPLY_SCHEMA },
       },
-      messages: history.map((m) => ({
-        role: m.sender === ChatSender.user ? 'user' : 'assistant',
-        content: m.text,
-      })),
     });
 
     if (response.stop_reason === 'refusal') {
-      this.logger.warn('ChatAgentService.reply: Claude refused', {
+      this.logger.warn('AnthropicAdapter.reply: Claude refused', {
+        conversationId,
         category: response.stop_details?.category ?? 'unknown',
       });
       return { text: FALLBACK_REPLY, scamProbability: 0 };
@@ -73,13 +53,21 @@ export class ChatAgentService {
       return JSON.parse(textBlock.text) as AgentReply;
     } catch (error) {
       this.logger.error(
-        'ChatAgentService.reply: failed to parse structured output',
+        'AnthropicAdapter.reply: failed to parse structured output',
         {
+          conversationId,
           error: error instanceof Error ? error.message : String(error),
           rawText: textBlock.text,
         },
       );
       return { text: FALLBACK_REPLY, scamProbability: 0 };
     }
+  }
+
+  private buildMessages(history: Message[]): Anthropic.MessageParam[] {
+    return history.map((m) => ({
+      role: m.sender === ChatSender.user ? 'user' : 'assistant',
+      content: m.text,
+    }));
   }
 }
