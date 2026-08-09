@@ -76,7 +76,11 @@ export class ChatService {
   }
 
   async end(conversationId: string): Promise<void> {
-    const live = await this.conversationManager.loadLive(conversationId);
+    // Redis's live copy has a TTL — a conversation can be idle long enough
+    // for it to expire while the Postgres row is still Inprogress. Fall back
+    // and resume it (same as continueChat)
+    const live =
+      await this.conversationManager.loadOrResumeLive(conversationId);
     // Strip agentStatus (LiveConversation-only) — extract-service's DTO
     // rejects unrecognized fields, and persist()/notify() only need Conversation.
     const conversation: Conversation = {

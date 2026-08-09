@@ -8,6 +8,7 @@ import { ExtractionEntity } from '../../database/entities/extraction.entity';
 import {
   ExtractConversation,
   ExtractConversationInput,
+  ExtractDataTypeEnum,
   ExtractInput,
   ExtractItem,
   ExtractStatusEnum,
@@ -71,14 +72,26 @@ export class ExtractService {
 
     const extracted = await this.anthropicAdapter.extractBatch(conversations);
 
+    const scamProbabilityByUuid = new Map(
+      conversations.map((c) => [c.conversationId, c.scamProbability]),
+    );
+
     const results = await Promise.all(
-      extracted.map(async (conversation) => ({
-        conversationUuid: conversation.conversationUuid,
-        items: await this.persistValidItems(
+      extracted.map(async (conversation) => {
+        // Persist the scam probability as its own extraction record, even if it is 0 or null
+        await this.persistScamProbability(
+          conversation.conversationUuid,
+          scamProbabilityByUuid.get(conversation.conversationUuid),
+        );
+        
+        // Persist the valid items only, dropping any that fail re-validation
+        const items = await this.persistValidItems(
           conversation.conversationUuid,
           conversation.items,
-        ),
-      })),
+        );
+
+        return { conversationUuid: conversation.conversationUuid, items };
+      }),
     );
 
     await this.conversationRepo.update(
@@ -109,6 +122,21 @@ export class ExtractService {
         status: ExtractStatusEnum.NEW,
       },
       ['uuid'],
+    );
+  }
+
+  /** Upserts the conversation's scam probability as its own extraction record. */
+  private async persistScamProbability(
+    conversationUuid: string,
+    scamProbability: number | undefined,
+  ): Promise<void> {
+    await this.extractionRepo.upsert(
+      {
+        conversationUuid,
+        dataType: ExtractDataTypeEnum.SCAM_PROBABILITY,
+        value: String(scamProbability),
+      },
+      ['conversationUuid', 'dataType', 'value'],
     );
   }
 

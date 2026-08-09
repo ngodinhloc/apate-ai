@@ -10,6 +10,8 @@ import {
 } from '../contracts/extract.interface';
 import { ExtractService } from './extract.service';
 
+const CLAIM_BATCH_LIMIT = 100;
+
 @Injectable()
 export class CronService {
   constructor(
@@ -75,6 +77,8 @@ export class CronService {
         .where('conversation.status = :status', {
           status: ExtractStatusEnum.NEW,
         })
+        .orderBy('conversation.createdAt', 'ASC')
+        .limit(CLAIM_BATCH_LIMIT)
         .getMany();
 
       if (rows.length === 0) return [];

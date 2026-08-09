@@ -8,7 +8,7 @@ import MessageBubble from './MessageBubble';
 import LoadingSkeleton from './LoadingSkeleton';
 import ExtractionsPanel from './ExtractionsPanel';
 import { newChat, continueChat, getChat } from '@/lib/api';
-import { Conversation, StatusEnum } from '@/types/chat';
+import { Conversation, Message, StatusEnum } from '@/types/chat';
 
 function buildWsUrl(): string {
   const base = process.env.NEXT_PUBLIC_WS_URL;
@@ -145,6 +145,16 @@ export default function ScamChat() {
         setConversation(created);
         subscribe(created.conversationId);
       } else {
+        // Append optimistically so the user's own message shows up before the
+        // isThinking indicator, instead of waiting on the next WS poll tick.
+        const userMessage: Message = {
+          sender: 'user',
+          text,
+          timestamp: new Date().toISOString(),
+        };
+        setConversation((prev) =>
+          prev ? { ...prev, messages: [...prev.messages, userMessage] } : prev,
+        );
         subscribe(conversationIdRef.current);
         await continueChat(conversationIdRef.current, text);
       }

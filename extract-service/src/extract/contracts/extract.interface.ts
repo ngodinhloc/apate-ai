@@ -6,6 +6,7 @@ export enum ExtractDataTypeEnum {
   BANK_ACCOUNT_AU = 'bank_account_au',
   BANK_ACCOUNT_UK = 'bank_account_uk',
   PAYID = 'pay_id',
+  SCAM_PROBABILITY = 'scam_probability',
 }
 
 export enum ExtractStatusEnum {

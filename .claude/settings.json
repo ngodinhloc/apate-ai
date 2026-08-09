@@ -12,10 +12,45 @@
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\), indent=2\\)\\); print\\(json.dumps\\(d.get\\('jest',{}\\), indent=2\\)\\); print\\('jest' in d.get\\('devDependencies',{}\\), 'ts-jest' in d.get\\('devDependencies',{}\\)\\)\")",
       "Bash(npx jest *)",
       "Bash(npx nest *)",
-      "Bash(rm /Users/kenngo/Documents/Projects/apate-ai/extract-service/tsconfig.tsbuildinfo *)"
+      "Bash(rm /Users/kenngo/Documents/Projects/apate-ai/extract-service/tsconfig.tsbuildinfo *)",
+      "Bash(grep -rn 'chat:\\\\$' /Users/kenngo/Documents/Projects/apate-ai --include='*.ts')",
+      "Bash(xargs -I{} sh -c 'echo ==={}===; cat {}')",
+      "Bash(curl -s http://localhost:8000/api/chat/238538e3-8fdf-4d15-b856-f20155ad908f)",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_network_requests",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X POST http://localhost:8000/api/chat/238538e3-8fdf-4d15-b856-f20155ad908f/end)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X POST http://localhost:3000/api/chat/238538e3-8fdf-4d15-b856-f20155ad908f/end -H \"Content-Type: text/plain;charset=UTF-8\" --data \"\")",
+      "Bash(curl -s -i -X POST http://localhost:8000/api/chat/238538e3-8fdf-4d15-b856-f20155ad908f/end)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('status:', d['status']\\)\")",
+      "mcp__playwright__browser_evaluate",
+      "Bash(curl -s http://localhost:8000/api/chat/1db0efbd-b9cd-411a-b809-95b31b0ccd6e)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s http://localhost:8000/api/chat/e36c071f-b8c9-44e4-bf0b-2b65368ec5a7)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d['messages'][0]['text'][:60]\\)\")",
+      "Bash(git status *)",
+      "Bash(git checkout *)",
+      "Bash(xargs -I{} echo {})",
+      "Bash(echo \"exit: $?\")",
+      "Bash(xattr -l dist)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(npx which *)",
+      "Bash(./node_modules/.bin/tsc --version)",
+      "Bash(mkdir -p /Users/kenngo/Documents/Projects/apate-ai/.vscode && cat /Users/kenngo/Documents/Projects/apate-ai/.vscode/settings.json 2>/dev/null || echo \"NO_FILE\")",
+      "Bash(F=\"/Users/kenngo/Library/Application Support/Code/logs/20260808T112901/window9/exthost/vscode.typescript-language-features/tsserver-log-GFBlN4/tsserver.log\" *)",
+      "Read(//Users/kenngo/Library/Application Support/Code/logs/20260808T112901/window9/exthost/vscode.typescript-language-features/tsserver-log-GFBlN4/**)",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(rm /Users/kenngo/Documents/Projects/apate-ai/.vscode/settings.json)",
+      "Bash(rmdir /Users/kenngo/Documents/Projects/apate-ai/.vscode)",
+      "Read(//Users/kenngo/Library/Application Support/Code/logs/20260808T112901/window9/exthost/vscode.typescript-language-features/tsserver-log-jCvMLC/**)",
+      "Bash(F=\"/Users/kenngo/Library/Application Support/Code/logs/20260808T112901/window9/exthost/vscode.typescript-language-features/tsserver-log-jCvMLC/tsserver.log\" *)",
+      "Bash(grep -c \"\\\\.spec\\\\.ts$\")",
+      "Bash(echo \"BUILD EXIT: $?\")",
+      "Bash(rm -f /Users/kenngo/Documents/Projects/apate-ai/.vscode/settings.json)"
     ],
     "additionalDirectories": [
-      "/Users/kenngo/Documents/Projects/apate-ai/extract-service"
+      "/Users/kenngo/Documents/Projects/apate-ai/extract-service",
+      "/Users/kenngo/Documents/Projects/apate-ai"
     ]
   }
 }

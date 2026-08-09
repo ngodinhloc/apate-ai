@@ -13,6 +13,10 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   private connection: amqp.ChannelModel | null = null;
   private channel: amqp.Channel | null = null;
   private pendingSubscriptions: Subscription[] = [];
+  // Every subscription ever registered, so a reconnect can rebind them all —
+  // not just the ones still pending from before the first connect.
+  private readonly subscriptions: Subscription[] = [];
+  private isShuttingDown = false;
 
   constructor(
     private readonly logger: AppLogger,
@@ -27,12 +31,14 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     this.pendingSubscriptions = [];
   }
 
+  // Bounded: used only for the initial boot connect. If RabbitMQ is never
+  // reachable, this throws and NestJS fails to start, so the container's
+  // `restart: unless-stopped` policy can cycle it — same as before this
+  // class grew reconnect support.
   private async connect(url: string, attempt = 1): Promise<void> {
     const maxAttempts = 10;
     try {
-      this.connection = await amqp.connect(url);
-      this.channel = await this.connection.createChannel();
-      this.logger.log('RabbitMQService.connect: Connected to RabbitMQ');
+      await this.establishConnection(url);
     } catch (err) {
       if (attempt >= maxAttempts) throw err;
       const delay = Math.min(1000 * attempt, 10000);
@@ -48,7 +54,53 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // Unbounded: a mid-run drop shouldn't require a manual restart just
+  // because RabbitMQ took longer than a few connect attempts to come back.
+  private async reconnect(url: string, attempt = 1): Promise<void> {
+    this.channel = null;
+    this.connection = null;
+    try {
+      await this.establishConnection(url);
+    } catch (err) {
+      const delay = Math.min(1000 * attempt, 10000);
+      this.logger.warn(
+        `RabbitMQService.reconnect: RabbitMQ still unreachable, retrying in ${delay}ms…`,
+        { attempt, error: String(err) },
+      );
+      await new Promise((r) => setTimeout(r, delay));
+      return this.reconnect(url, attempt + 1);
+    }
+    for (const sub of this.subscriptions) {
+      await this.bindSubscription(sub);
+    }
+  }
+
+  private async establishConnection(url: string): Promise<void> {
+    this.connection = await amqp.connect(url);
+    this.channel = await this.connection.createChannel();
+
+    // amqplib emits 'error' on the connection for things like a heartbeat
+    // timeout; with no listener Node treats that as an unhandled error and
+    // kills the process. Log it instead and let the 'close' handler (which
+    // always follows) drive reconnection.
+    this.connection.on('error', (err) => {
+      this.logger.error('RabbitMQService: connection error', {
+        error: String(err),
+      });
+    });
+    this.connection.on('close', () => {
+      if (this.isShuttingDown) return;
+      this.logger.warn(
+        'RabbitMQService: connection closed unexpectedly, reconnecting…',
+      );
+      void this.reconnect(url);
+    });
+
+    this.logger.log('RabbitMQService.connect: Connected to RabbitMQ');
+  }
+
   async onModuleDestroy() {
+    this.isShuttingDown = true;
     await this.channel?.close();
     await this.connection?.close();
   }
@@ -83,6 +135,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     handler: MessageHandler,
   ): Promise<void> {
     const sub: Subscription = { queue, bindings, handler };
+    this.subscriptions.push(sub);
     if (!this.channel) {
       this.pendingSubscriptions.push(sub);
       return;

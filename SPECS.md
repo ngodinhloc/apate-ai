@@ -1,154 +1,192 @@
-# Apate AI 
-Aptea AI is a scam detection chatbot that plays along with the scammer conversation to collect intelligent information, e.g: bank account details, email addresses, phone numbers, and PayIDs
+# Apate AI
 
-## chat-frontend:
-- NextJS, App Router: very similar to ../architect-multi-agent/frontend
-- Expandable left menu: New Chat button, Chat History
-- - New Chat button -> new chat page includes a chat interface. Request to send to chat-service at api/chat/, then open a websockt to api/chat/{uuid}
-- - Chat History -> list the chat history. Request to GET: api/chat/historym and GET: api/chat/history/{uuid} for detail of each conversation
+Apate AI is a scam-detection chatbot that plays along with a scammer's conversation to collect intelligence — bank account details, email addresses, phone numbers, and PayIDs.
+
+---
+
+![architecture](architecture.png)
+
+---
+
+## chat-frontend
+
+- Next.js, App Router — very similar to `../architect-multi-agent/frontend`
+- Expandable left menu: **New Chat** button, **Chat History**
+  - **New Chat** button → new chat page with a chat interface. Sends a request to chat-service at `api/chat/`, then opens a WebSocket to `api/chat/{uuid}`
+  - **Chat History** → lists chat history. Requests `GET api/chat/history` and `GET api/chat/history/{uuid}` for the detail of each conversation
+
+---
 
 ## chat-service
-- NestJS, TypeORM: very similar to ../architect-multi-agent/backend
+
+NestJS, TypeORM — very similar to `../architect-multi-agent/backend`
 
 ### Interfaces
-Message {
-    sender: "user" | "agent",
-    text: string,
-    timestamp: date,
+
+```typescript
+interface Message {
+  sender: "user" | "agent";
+  text: string;
+  timestamp: date;
 }
 
-Conversation {
-    conversationId: uui,
-    messages: MessageInterface[],
-    scamProbability: number,
-    status: StatusEnum
-    createdAt: date,
-    modfiefAt: date
+interface Conversation {
+  conversationId: uuid;
+  messages: Message[];
+  scamProbability: number;
+  status: StatusEnum;
+  createdAt: date;
+  modifiedAt: date;
 }
 
-StatusEnum {
-    Inprogress: 0,
-    Ended: 1;
+enum StatusEnum {
+  Inprogress = 0,
+  Ended = 1,
 }
 
-ChatMessage {
-    conversationId: uui,
-    text: string,
+interface ChatMessage {
+  conversationId: uuid;
+  text: string;
 }
 
-ChatEnd {
-    conversationId: uui,
+interface ChatEnd {
+  conversationId: uuid;
 }
 
-ChatResponse {
-    conversationId: uui,
-    text: string,
-    scamProbability: float (0-1)
+interface ChatResponse {
+  conversationId: uuid;
+  text: string;
+  scamProbability: float; // 0-1
 }
 
-ConversationEvent {
-    eventName: apate.conversation.ended,
-    data: {
-        conversationId: uui,
-        messages: MessageInterface[],
-        scamProbability: number,
-        status: StatusEnum
-        createdAt: date,
-        modfiefAt: date
-    }
+interface ConversationEvent {
+  eventName: "apate.conversation.ended";
+  data: {
+    conversationId: uuid;
+    messages: Message[];
+    scamProbability: number;
+    status: StatusEnum;
+    createdAt: date;
+    modifiedAt: date;
+  };
 }
-
-### Database:
-conversations table {
-    id: int, auto-increment,
-    uuid: string,
-    title: string,
-    messages: MessageInterface[] (jsonb),
-    scam_probability: float (0-1),
-    status: StatusEnum (smallint)
-    created_at: date,
-    modified_at: data 
-}
-
-### Endpoints:
-- POST api/chat/: create a new record in conversations table, title = substring of the message, store an item in redis with key uuid, and value = Conversation
-
-- POST api/chat/{uuid}: frontend will send a ChatMessageInteface, chat-service will converte ChatMessage to Message (sender="user", add timespatem), then apend the new Message to Conversation.messages in redis, then send the full conversation to Claude, Claude will respone with output structure ChatResponse, chat-service then append new Message(sender="agent") to Conversation.messages, and update Conversation.scamProbability.
-
-- POST: api/chat/{uuid}/end: on frontend, when user close or navigate away the chat page of a current conversation -> frontend send request ChatEnd to this endpoint, chat-service then retrieve the Conversation from redis, upsert the record in conversations table. Introduce an env EXTRACT_ACTION=1|2 (SYNC|ASYNC), if  EXTRACT_ACTION=1 then send a request o extract-service at: api/extract with payload = Conversation, if EXTRACT_ACTION =2 then publish an event message ConversationEvent to exchange apapte with routing key = apate.conversation.ended
-
-- GET api/chat/: return the list of conversations ()
-- GET api/chat/{uuid}: return detail of one conversation
-
-## extract-service
-- NestJS, TypeORM: use ../architect-multi-agent/backend for style and pattern
-
-### Intefaces
-ExtractDataTypeEnum {
-    NAME: name,
-    EMAIL: email,
-    PHONE: phone,
-    ADDRESS: address,
-    BANK_ACCOUNT_AU: banka_account_au,
-    BANK_ACCOUNT_UK: bank_account_uk,
-    PAYID: pay_id
-}
-// Format vaidation
-BANK_ACCOUNT_AU: BSB (NNN-NNN) + ACCOUNT(NNNNNNNN)
-BANK_ACCOUNT_UK: sort code (NN-NN-NN) + ACCOUNT(NNNNNNNN)
-PAYID: email / phone / ABN
-
-
-ExtractOutput {
-    conversations: ExtractConversation[],     
-}
-
-ExtractConversation {
-    conversationUuid: string,
-    items: ExtractItem[]
-}
-
-ExtractItem {
-    dataType: ExtractDataTypeEnum,
-    value: string,
-}
+```
 
 ### Database
-ExtractStatusEnum {
-    NEW: 0,
-    PROCESSED: 1,
-    PROCESSING: 2,
-}
 
-conversations table {
-    id: int, auto-increment,
-    uuid: string,
-    title: string,
-    messages: MessageInterface[] (jsonb),
-    scam_probability: float (0-1),
-    status: ExtractStatusEnum (smallint)
-    created_at: date,
-    modified_at: data 
+```typescript
+table conversations {
+  id: int, auto-increment;
+  uuid: string;
+  title: string;
+  messages: Message[]; // jsonb
+  scam_probability: float; // 0-1
+  status: StatusEnum; // smallint
+  created_at: date;
+  modified_at: date;
 }
-
-extractions table {
-    id: int, auto-increment,
-    conversation_uuid: string,
-    data_type: ExtractDataTypeEnum|string,
-    value: string,
-    created_at: date,
-    unique index: (conversation_uuid,data_type,value)
-}
+```
 
 ### Endpoints
-- POST api/extract: payload = Conversation, extract-service feed the a list of  conversation (with one item) to Claude to extract intelligent data , the System promt should include all instruction for each ExtractDataTypeEnum, for each conversation, Claude should response with a structure output ExtractOutput, extract-service then process ExtractOutput and upinsert to extractions table (see unique index: (conversation_uuid,date_type,value)
 
-Note: chat-service and extract-service use the same PostgreSQL, different schema (chat_service, extract_service)
+| Method | Path | Description |
+|--------|------|--------------|
+| `POST` | `api/chat/` | Create a new record in the `conversations` table, with `title` set to a substring of the message, and store an item in Redis with key `uuid` and value `Conversation`. |
+| `POST` | `api/chat/{uuid}` | The frontend sends a `ChatMessage`. chat-service converts it to a `Message` (`sender="user"`, timestamp added), appends the new `Message` to `Conversation.messages` in Redis, then sends the full conversation to Claude. Claude responds with a `ChatResponse`, chat-service appends a new `Message` (`sender="agent"`) to `Conversation.messages`, and updates `Conversation.scamProbability`. |
+| `POST` | `api/chat/{uuid}/end` | On the frontend, when the user closes or navigates away from the current conversation's chat page, the frontend sends a `ChatEnd` request to this endpoint. chat-service retrieves the `Conversation` from Redis and upserts the record in the `conversations` table. An env var `EXTRACT_ACTION=1\|2` (`SYNC`\|`ASYNC`) controls the handoff: if `EXTRACT_ACTION=1`, send a request to extract-service at `api/extract` with payload `Conversation`; if `EXTRACT_ACTION=2`, publish a `ConversationEvent` message to exchange `apate` with routing key `apate.conversation.ended`. |
+| `GET` | `api/chat/` | Return the list of conversations. |
+| `GET` | `api/chat/{uuid}` | Return the detail of one conversation. |
 
+---
+
+## extract-service
+
+NestJS, TypeORM — use `../architect-multi-agent/backend` for style and pattern.
+
+### Interfaces
+
+```typescript
+enum ExtractDataTypeEnum {
+  NAME = "name",
+  EMAIL = "email",
+  PHONE = "phone",
+  ADDRESS = "address",
+  BANK_ACCOUNT_AU = "bank_account_au",
+  BANK_ACCOUNT_UK = "bank_account_uk",
+  PAYID = "pay_id",
+}
+
+interface ExtractOutput {
+  conversations: ExtractConversation[];
+}
+
+interface ExtractConversation {
+  conversationUuid: string;
+  items: ExtractItem[];
+}
+
+interface ExtractItem {
+  dataType: ExtractDataTypeEnum;
+  value: string;
+}
+```
+
+**Format validation:**
+
+| `dataType` | Format |
+|---|---|
+| `BANK_ACCOUNT_AU` | BSB (`NNN-NNN`) + account (`NNNNNNNN`) |
+| `BANK_ACCOUNT_UK` | sort code (`NN-NN-NN`) + account (`NNNNNNNN`) |
+| `PAYID` | email / phone / ABN |
+
+### Database
+
+```typescript
+enum ExtractStatusEnum {
+  NEW = 0,
+  PROCESSED = 1,
+  PROCESSING = 2,
+}
+
+table conversations {
+  id: int, auto-increment;
+  uuid: string;
+  title: string;
+  messages: Message[]; // jsonb
+  scam_probability: float; // 0-1
+  status: ExtractStatusEnum; // smallint
+  created_at: date;
+  modified_at: date;
+}
+
+table extractions {
+  id: int, auto-increment;
+  conversation_uuid: string;
+  data_type: ExtractDataTypeEnum | string;
+  value: string;
+  created_at: date;
+  unique index: (conversation_uuid, data_type, value);
+}
+```
+
+> **Note:** chat-service and extract-service use the same PostgreSQL instance, in different schemas (`chat_service`, `extract_service`).
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|--------------|
+| `POST` | `api/extract` | Payload: `Conversation`. extract-service feeds a list of conversations (one item each) to Claude to extract intelligence. The system prompt includes instructions for every `ExtractDataTypeEnum` value. For each conversation, Claude responds with structured output `ExtractOutput`; extract-service then processes the output and upserts into the `extractions` table (see unique index `(conversation_uuid, data_type, value)`). |
 
 ### RabbitMQ Consumer
-- Please refer to ../code-inspect/checkout-service for the pattern, and implementation of EventModule
-- rabbitMQ consumer subscribe to apapte exchange for routing key apate.conversation.ended, extract the Conversation data from the event data and upsert to table conversations (by uuid)
+
+- Refer to `../code-inspect/checkout-service` for the pattern and implementation of `EventModule`.
+- The RabbitMQ consumer subscribes to the `apate` exchange for routing key `apate.conversation.ended`, extracts the `Conversation` data from the event payload, and upserts it into the `conversations` table (by `uuid`).
 
 ### Cron task
-- Implement a cron task that run every minutes, get all the conversations with status = ExtractStatusEnum.New, send them to Claude to extract intelligent data. While processing: update these conversation.status = ExtractStatusEnum.PROCESSING so that other instances do not pick them up again, when received response from LLM update conversation.status = ExtractStatusEnum.PROCESSED
+
+Implement a cron task that runs every minute:
+
+1. Fetch all conversations with `status = ExtractStatusEnum.NEW`.
+2. Send them to Claude to extract intelligence.
+3. While processing, set `conversation.status = ExtractStatusEnum.PROCESSING` so other instances don't pick them up again.
+4. On receiving the response from the LLM, set `conversation.status = ExtractStatusEnum.PROCESSED`.

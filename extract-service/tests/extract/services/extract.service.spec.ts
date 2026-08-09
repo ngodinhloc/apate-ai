@@ -49,7 +49,7 @@ describe('ExtractService', () => {
     );
   });
 
-  describe('processAll', () => {
+  describe('extractAll', () => {
     it('persists every conversation, then extracts them all in one batched call', async () => {
       const items: ExtractItem[] = [
         { dataType: ExtractDataTypeEnum.EMAIL, value: 'scammer@example.com' },
@@ -59,7 +59,7 @@ describe('ExtractService', () => {
       ]);
       objectValidator.validate.mockReturnValue('scammer@example.com');
 
-      const result = await service.processAll({
+      const result = await service.extractAll({
         conversations: [conversation],
       });
 
@@ -133,7 +133,33 @@ describe('ExtractService', () => {
         },
         { conversationUuid: 'b', items: [] },
       ]);
-      expect(extractionRepo.upsert).toHaveBeenCalledTimes(1);
+      expect(extractionRepo.upsert).toHaveBeenCalledWith(
+        [
+          {
+            conversationUuid: 'a',
+            dataType: ExtractDataTypeEnum.EMAIL,
+            value: 'good@example.com',
+          },
+        ],
+        ['conversationUuid', 'dataType', 'value'],
+      );
+      expect(extractionRepo.upsert).toHaveBeenCalledWith(
+        {
+          conversationUuid: 'a',
+          dataType: ExtractDataTypeEnum.SCAM_PROBABILITY,
+          value: String(conversation.scamProbability),
+        },
+        ['conversationUuid', 'dataType', 'value'],
+      );
+      expect(extractionRepo.upsert).toHaveBeenCalledWith(
+        {
+          conversationUuid: 'b',
+          dataType: ExtractDataTypeEnum.SCAM_PROBABILITY,
+          value: String(conversation.scamProbability),
+        },
+        ['conversationUuid', 'dataType', 'value'],
+      );
+      expect(extractionRepo.upsert).toHaveBeenCalledTimes(3);
       expect(conversationRepo.update).toHaveBeenCalledWith(
         { uuid: expect.anything() },
         { status: ExtractStatusEnum.PROCESSED },
