@@ -1,0 +1,174 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: apate
+      POSTGRES_PASSWORD: apate
+      POSTGRES_DB: apate
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U apate -d apate']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+    restart: unless-stopped
+
+  chat-service:
+    build:
+      context: ./chat-service
+      dockerfile: infra/Dockerfile.dev
+    ports:
+      - '8000:8000'
+    env_file:
+      - ./chat-service/.env
+    environment:
+      PORT: '8000'
+      DATABASE_URL: 'postgresql://apate:apate@postgres:5432/apate'
+      DB_SCHEMA: 'chat_service'
+      REDIS_URL: 'redis://redis:6379'
+      EXTRACT_SERVICE_URL: 'http://extract-service:8000'
+      RABBITMQ_URL: 'amqp://guest:guest@rabbitmq:5672/'
+      EXTRACT_ACTION: '${EXTRACT_ACTION:-1}'
+      CORS_ORIGINS: 'http://localhost:3000'
+    volumes:
+      - ./chat-service:/app
+      - chat_service_node_modules:/app/node_modules
+      - chat_service_dist:/app/dist
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:8000/api/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  extract-service:
+    build:
+      context: ./extract-service
+      dockerfile: infra/Dockerfile.dev
+    ports:
+      - '8001:8000'
+    env_file:
+      - ./extract-service/.env
+    environment:
+      PORT: '8000'
+      DATABASE_URL: 'postgresql://apate:apate@postgres:5432/apate'
+      DB_SCHEMA: 'extract_service'
+      RABBITMQ_URL: 'amqp://guest:guest@rabbitmq:5672/'
+      CORS_ORIGINS: 'http://chat-service:8000'
+    volumes:
+      - ./extract-service:/app
+      - extract_service_node_modules:/app/node_modules
+      - extract_service_dist:/app/dist
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:8000/api/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  chat-frontend:
+    build:
+      context: ./chat-frontend
+      dockerfile: infra/Dockerfile.dev
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      API_TARGET: 'http://chat-service:8000'
+      EXTRACT_API_TARGET: 'http://extract-service:8000'
+      NEXT_PUBLIC_WS_URL: 'ws://localhost:8000'
+    volumes:
+      - ./chat-frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      chat-service:
+        condition: service_healthy
+      extract-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 768M
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  chat_service_node_modules:
+  chat_service_dist:
+  extract_service_node_modules:
+  extract_service_dist:
