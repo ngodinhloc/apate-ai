@@ -2,7 +2,8 @@ import { Repository } from 'typeorm';
 import { ExtractService } from '../../../src/extract/services/extract.service';
 import { AppLogger } from '../../../src/common/logger/services/app-logger';
 import { AnthropicAdapter } from '../../../src/llm/adapters/anthropic.adapter';
-import { ObjectValidator } from '../../../src/extract/services/object.validator';
+import { ObjectFactory } from '../../../src/extract/services/object.factory';
+import { Email } from '../../../src/extract/services/value-objects/email';
 import { ConversationEntity } from '../../../src/database/entities/conversation.entity';
 import { ExtractionEntity } from '../../../src/database/entities/extraction.entity';
 import {
@@ -15,7 +16,7 @@ import {
 describe('ExtractService', () => {
   let logger: jest.Mocked<Pick<AppLogger, 'log' | 'warn' | 'error'>>;
   let anthropicAdapter: jest.Mocked<Pick<AnthropicAdapter, 'extractBatch'>>;
-  let objectValidator: jest.Mocked<Pick<ObjectValidator, 'validate'>>;
+  let objectFactory: jest.Mocked<Pick<ObjectFactory, 'create'>>;
   let conversationRepo: jest.Mocked<
     Pick<Repository<ConversationEntity>, 'update' | 'upsert'>
   >;
@@ -36,14 +37,14 @@ describe('ExtractService', () => {
   beforeEach(() => {
     logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
     anthropicAdapter = { extractBatch: jest.fn() };
-    objectValidator = { validate: jest.fn() };
+    objectFactory = { create: jest.fn() };
     conversationRepo = { update: jest.fn(), upsert: jest.fn() };
     extractionRepo = { upsert: jest.fn(), find: jest.fn() };
 
     service = new ExtractService(
       logger as unknown as AppLogger,
       anthropicAdapter as unknown as AnthropicAdapter,
-      objectValidator as unknown as ObjectValidator,
+      objectFactory as unknown as ObjectFactory,
       conversationRepo as unknown as Repository<ConversationEntity>,
       extractionRepo as unknown as Repository<ExtractionEntity>,
     );
@@ -57,7 +58,7 @@ describe('ExtractService', () => {
       anthropicAdapter.extractBatch.mockResolvedValue([
         { conversationUuid: conversation.conversationId, items },
       ]);
-      objectValidator.validate.mockReturnValue('scammer@example.com');
+      objectFactory.create.mockReturnValue(new Email('scammer@example.com'));
 
       const result = await service.extractAll({
         conversations: [conversation],
@@ -117,8 +118,8 @@ describe('ExtractService', () => {
           items: [{ dataType: ExtractDataTypeEnum.EMAIL, value: 'bad' }],
         },
       ]);
-      objectValidator.validate.mockImplementation((item) =>
-        item.value === 'good@example.com' ? 'good@example.com' : null,
+      objectFactory.create.mockImplementation((item) =>
+        item.value === 'good@example.com' ? new Email('good@example.com') : null,
       );
 
       const result = await service.processBatch(entities);

@@ -75,7 +75,7 @@ services:
       REDIS_URL: 'redis://redis:6379'
       EXTRACT_SERVICE_URL: 'http://extract-service:8000'
       RABBITMQ_URL: 'amqp://guest:guest@rabbitmq:5672/'
-      EXTRACT_ACTION: '${EXTRACT_ACTION:-1}'
+      EXTRACT_ACTION: '${EXTRACT_ACTION:-2}'
       CORS_ORIGINS: 'http://localhost:3000'
     volumes:
       - ./chat-service:/app

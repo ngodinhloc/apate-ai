@@ -1,3 +1,4 @@
+import { ExtractDataTypeEnum } from '../../contracts/extract.interface';
 import { ValueObject } from './value-object';
 import { Email } from './email';
 import { Phone } from './phone';
@@ -9,6 +10,10 @@ const ABN = /^\d{2}\s?\d{3}\s?\d{3}\s?\d{3}$/;
 export class PayId extends ValueObject {
   protected isValid(value: string): boolean {
     return isEmail(value) || isPhone(value) || ABN.test(value);
+  }
+
+  static getType(): string {
+    return ExtractDataTypeEnum.PAYID;
   }
 
   static getDescription(): string {

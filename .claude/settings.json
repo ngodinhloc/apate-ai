@@ -46,7 +46,12 @@
       "Bash(F=\"/Users/kenngo/Library/Application Support/Code/logs/20260808T112901/window9/exthost/vscode.typescript-language-features/tsserver-log-jCvMLC/tsserver.log\" *)",
       "Bash(grep -c \"\\\\.spec\\\\.ts$\")",
       "Bash(echo \"BUILD EXIT: $?\")",
-      "Bash(rm -f /Users/kenngo/Documents/Projects/apate-ai/.vscode/settings.json)"
+      "Bash(rm -f /Users/kenngo/Documents/Projects/apate-ai/.vscode/settings.json)",
+      "Bash(node -e ' *)",
+      "Bash(echo \"lint exit: $?\")",
+      "Bash(sed -i '' \"s#'../src/#'../../src/#\" /tmp/verify_prompt.spec.ts)",
+      "Bash(cp /tmp/verify_prompt.spec.ts tests/__tmp__/verify_prompt.spec.ts)",
+      "Bash(curl -sI http://localhost:3000/ --max-time 5)"
     ],
     "additionalDirectories": [
       "/Users/kenngo/Documents/Projects/apate-ai/extract-service",

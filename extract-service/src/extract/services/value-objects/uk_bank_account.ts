@@ -1,3 +1,4 @@
+import { ExtractDataTypeEnum } from '../../contracts/extract.interface';
 import { ValueObject } from './value-object';
 
 // Sort code NN-NN-NN + account NNNNNNNN, e.g. "12-34-56 12345678"
@@ -6,6 +7,10 @@ const UK_BANK_ACCOUNT = /^\d{2}-\d{2}-\d{2}\s+\d{6,10}$/;
 export class UkBankAccount extends ValueObject {
   protected isValid(value: string): boolean {
     return UK_BANK_ACCOUNT.test(value);
+  }
+
+  static getType(): string {
+    return ExtractDataTypeEnum.BANK_ACCOUNT_UK;
   }
 
   static getDescription(): string {

@@ -1,5 +1,6 @@
 import { Phone } from '../../../../src/extract/services/value-objects/phone';
 import { InvalidValueException } from '../../../../src/extract/exceptions/invalid-value.exception';
+import { ExtractDataTypeEnum } from '../../../../src/extract/contracts/extract.interface';
 
 describe('Phone', () => {
   it('accepts a phone number with an optional + prefix', () => {
@@ -16,5 +17,15 @@ describe('Phone', () => {
 
   it('rejects a value that is too short', () => {
     expect(() => new Phone('123')).toThrow(InvalidValueException);
+  });
+
+  it('getType returns the phone data type', () => {
+    expect(Phone.getType()).toBe(ExtractDataTypeEnum.PHONE);
+  });
+
+  it('getDescription returns a non-empty description', () => {
+    expect(Phone.getDescription()).toBe(
+      'a phone number, digits with optional +, spaces, hyphens, or parentheses.',
+    );
   });
 });

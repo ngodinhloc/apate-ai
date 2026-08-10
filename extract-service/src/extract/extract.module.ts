@@ -4,12 +4,12 @@ import { LlmModule } from '../llm/llm.module';
 import { ExtractController } from './controllers/extract.controller';
 import { ExtractService } from './services/extract.service';
 import { CronService } from './services/cron.service';
-import { ObjectValidator } from './services/object.validator';
+import { ObjectFactory } from './services/object.factory';
 
 @Module({
   imports: [DatabaseModule, LlmModule],
   controllers: [ExtractController],
-  providers: [ExtractService, CronService, ObjectValidator],
+  providers: [ExtractService, CronService, ObjectFactory],
   exports: [ExtractService],
 })
 export class ExtractModule {}

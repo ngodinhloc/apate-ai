@@ -10,7 +10,7 @@ Apate AI is a scam-detection chatbot that plays along with a scammer's conversat
 
 ## chat-frontend
 
-- Next.js, App Router — very similar to `../architect-multi-agent/frontend`
+- Next.js, App Router
 - Expandable left menu: **New Chat** button, **Chat History**
   - **New Chat** button → new chat page with a chat interface. Sends a request to chat-service at `api/chat/`, then opens a WebSocket to `api/chat/{uuid}`
   - **Chat History** → lists chat history. Requests `GET api/chat/history` and `GET api/chat/history/{uuid}` for the detail of each conversation
@@ -19,7 +19,7 @@ Apate AI is a scam-detection chatbot that plays along with a scammer's conversat
 
 ## chat-service
 
-NestJS, TypeORM — very similar to `../architect-multi-agent/backend`
+NestJS, TypeORM
 
 ### Interfaces
 
@@ -101,7 +101,7 @@ table conversations {
 
 ## extract-service
 
-NestJS, TypeORM — use `../architect-multi-agent/backend` for style and pattern.
+NestJS, TypeORM
 
 ### Interfaces
 
@@ -179,7 +179,7 @@ table extractions {
 
 ### RabbitMQ Consumer
 
-- Refer to `../code-inspect/checkout-service` for the pattern and implementation of `EventModule`.
+- Use Claude skill `event-processor-pattern`.
 - The RabbitMQ consumer subscribes to the `apate` exchange for routing key `apate.conversation.ended`, extracts the `Conversation` data from the event payload, and upserts it into the `conversations` table (by `uuid`).
 
 ### Cron task

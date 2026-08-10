@@ -9,7 +9,14 @@ import {
 } from '../../extract/contracts/extract.interface';
 import { EXTRACTOR_SYSTEM_PROMT } from '../templates/system.prompts';
 import { EXTRACT_OUTPUT_SCHEMA } from '../templates/output.schemas';
+import { AnthropicPricingService } from '../services/anthropic.pricing';
 import { AdapterInterface, SupportedModels } from '../contracts/llm.interface';
+
+// SDK default is 2 retries with exponential backoff on 408/409/429/5xx and
+// connection errors; bumped up so a batch isn't kicked back to NEW on a blip.
+const MAX_RETRIES = 4;
+
+const MAX_TOKENS = 4096;
 
 @Injectable()
 export class AnthropicAdapter implements AdapterInterface {
@@ -18,8 +25,12 @@ export class AnthropicAdapter implements AdapterInterface {
   constructor(
     envService: EnvService,
     private readonly logger: AppLogger,
+    private readonly pricingService: AnthropicPricingService,
   ) {
-    this.client = new Anthropic({ apiKey: envService.getAnthropicApiKey() });
+    this.client = new Anthropic({
+      apiKey: envService.getAnthropicApiKey(),
+      maxRetries: MAX_RETRIES,
+    });
   }
 
   async extractBatch(
@@ -31,14 +42,30 @@ export class AnthropicAdapter implements AdapterInterface {
         items: [],
       }),
     );
+    const conversationIds = conversations.map((c) => c.conversationId);
 
-    const response = await this.client.messages.create(
-      this.buildMessageRequest(conversations),
-    );
+    const startedAt = Date.now();
+    let response: Anthropic.Message;
+    try {
+      response = await this.client.messages.create(
+        this.buildMessageRequest(conversations),
+      );
+    } catch (error) {
+      this.logger.error(
+        'AnthropicAdapter.extractBatch: request failed after retries',
+        {
+          conversationIds,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      throw error;
+    }
+
+    this.logUsage(conversationIds, response, Date.now() - startedAt);
 
     if (response.stop_reason === 'refusal') {
       this.logger.warn('AnthropicAdapter.extractBatch: Claude refused', {
-        conversationIds: conversations.map((c) => c.conversationId),
+        conversationIds,
         category: response.stop_details?.category ?? 'unknown',
       });
       return defaultResult;
@@ -48,7 +75,7 @@ export class AnthropicAdapter implements AdapterInterface {
     if (!textBlock || textBlock.type !== 'text') {
       this.logger.error(
         'AnthropicAdapter.extractBatch: no text block in response',
-        { conversationIds: conversations.map((c) => c.conversationId) },
+        { conversationIds },
       );
       return defaultResult;
     }
@@ -62,7 +89,7 @@ export class AnthropicAdapter implements AdapterInterface {
   ): Anthropic.MessageCreateParamsNonStreaming {
     return {
       model: SupportedModels.CLAUDE_SONNET_5,
-      max_tokens: 4096,
+      max_tokens: MAX_TOKENS,
       system: [
         {
           type: 'text',
@@ -86,5 +113,26 @@ export class AnthropicAdapter implements AdapterInterface {
         format: { type: 'json_schema', schema: EXTRACT_OUTPUT_SCHEMA },
       },
     };
+  }
+
+  private logUsage(
+    conversationIds: string[],
+    response: Anthropic.Message,
+    latencyMs: number,
+  ): void {
+    const costUsd = this.pricingService.calculateCostUsd(
+      SupportedModels.CLAUDE_SONNET_5,
+      response.usage,
+    );
+    this.logger.log('AnthropicAdapter.extractBatch: usage', {
+      conversationIds,
+      model: response.model,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      cacheCreationInputTokens: response.usage.cache_creation_input_tokens ?? 0,
+      cacheReadInputTokens: response.usage.cache_read_input_tokens ?? 0,
+      costUsd: Number(costUsd.toFixed(6)),
+      latencyMs,
+    });
   }
 }

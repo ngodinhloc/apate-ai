@@ -13,7 +13,7 @@ import {
   ExtractItem,
   ExtractStatusEnum,
 } from '../contracts/extract.interface';
-import { ObjectValidator } from './object.validator';
+import { ObjectFactory } from './object.factory';
 
 const TITLE_MAX_LENGTH = 60;
 
@@ -22,7 +22,7 @@ export class ExtractService {
   constructor(
     private readonly logger: AppLogger,
     private readonly anthropicAdapter: AnthropicAdapter,
-    private readonly objectValidator: ObjectValidator,
+    private readonly objectFactory: ObjectFactory,
     @InjectRepository(ConversationEntity)
     private readonly conversationRepo: Repository<ConversationEntity>,
     @InjectRepository(ExtractionEntity)
@@ -140,23 +140,21 @@ export class ExtractService {
     );
   }
 
-  /** Re-validates raw extracted items and upserts only the ones that pass. */
   private async persistValidItems(
     conversationId: string,
     items: ExtractItem[],
   ): Promise<ExtractItem[]> {
-    const validItems: ExtractItem[] = [];
-    for (const item of items) {
-      const value = this.objectValidator.validate(item);
-      if (value === null) {
+    const validItems: ExtractItem[] = items.flatMap((item) => {
+      const valueObject = this.objectFactory.create(item);
+      if (valueObject === null) {
         this.logger.warn(
           'ExtractService.persistValidItems: dropped invalid item',
           { conversationId, dataType: item.dataType },
         );
-        continue;
+        return [];
       }
-      validItems.push({ dataType: item.dataType, value });
-    }
+      return [{ dataType: item.dataType, value: valueObject.getValue() }];
+    });
 
     if (validItems.length > 0) {
       await this.extractionRepo.upsert(
