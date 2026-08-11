@@ -17,7 +17,7 @@ export async function newChat(text: string): Promise<Conversation> {
   return request('/api/chat/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, channel: 'portal' }),
   });
 }
 

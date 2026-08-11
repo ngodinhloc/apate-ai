@@ -3,6 +3,12 @@ export enum StatusEnum {
   Ended = 1,
 }
 
+export enum ChannelEnum {
+  Portal = 'portal',
+  Facebook = 'facebook',
+  Whatsapp = 'whatsapp',
+}
+
 export enum ChatSender {
   user = 'user',
   agent = 'agent',
@@ -16,6 +22,7 @@ export interface Message {
 
 export interface Conversation {
   conversationId: string;
+  channel: ChannelEnum;
   messages: Message[];
   scamProbability: number;
   status: StatusEnum;

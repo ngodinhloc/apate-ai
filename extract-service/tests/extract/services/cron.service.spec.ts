@@ -3,7 +3,10 @@ import { CronService } from '../../../src/extract/services/cron.service';
 import { AppLogger } from '../../../src/common/logger/services/app-logger';
 import { ExtractService } from '../../../src/extract/services/extract.service';
 import { ConversationEntity } from '../../../src/database/entities/conversation.entity';
-import { ExtractStatusEnum } from '../../../src/extract/contracts/extract.interface';
+import {
+  ChannelEnum,
+  ExtractStatusEnum,
+} from '../../../src/extract/contracts/extract.interface';
 
 describe('CronService', () => {
   let logger: jest.Mocked<Pick<AppLogger, 'log' | 'error'>>;
@@ -17,6 +20,7 @@ describe('CronService', () => {
   const conversation = (uuid: string): ConversationEntity =>
     ({
       uuid,
+      channel: ChannelEnum.Portal,
       messages: [],
       scamProbability: 0,
       status: ExtractStatusEnum.PROCESSING,
@@ -63,6 +67,7 @@ describe('CronService', () => {
       expect(extractService.processBatch).toHaveBeenCalledWith(
         claimed.map((c) => ({
           conversationId: c.uuid,
+          channel: c.channel,
           messages: c.messages,
           scamProbability: c.scamProbability,
           status: c.status,

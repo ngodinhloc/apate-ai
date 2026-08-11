@@ -44,6 +44,7 @@ export class CronService {
     try {
       const inputs: ExtractConversationInput[] = conversations.map((c) => ({
         conversationId: c.uuid,
+        channel: c.channel,
         messages: c.messages,
         scamProbability: c.scamProbability,
         status: c.status,

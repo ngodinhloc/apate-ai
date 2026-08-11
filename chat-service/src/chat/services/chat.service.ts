@@ -9,6 +9,7 @@ import { ConversationEntity } from '../../database/entities/conversation.entity'
 import { ConversationManager } from './conversation.manager';
 import {
   AgentStatus,
+  ChannelEnum,
   ChatSender,
   Conversation,
   ConversationSummary,
@@ -30,7 +31,10 @@ export class ChatService {
      private readonly logger: AppLogger,
   ) {}
 
-  async create(text: string): Promise<LiveConversation> {
+  async create(
+    text: string,
+    channel: ChannelEnum = ChannelEnum.Portal,
+  ): Promise<LiveConversation> {
     const conversationId = randomUUID();
     const now = new Date();
     const userMessage: Message = {
@@ -41,6 +45,7 @@ export class ChatService {
 
     let conversation: LiveConversation = {
       conversationId,
+      channel,
       messages: [userMessage],
       scamProbability: 0,
       status: StatusEnum.Inprogress,
@@ -85,6 +90,7 @@ export class ChatService {
     // rejects unrecognized fields, and persist()/notify() only need Conversation.
     const conversation: Conversation = {
       conversationId: live.conversationId,
+      channel: live.channel,
       messages: live.messages,
       scamProbability: live.scamProbability,
       status: StatusEnum.Ended,
@@ -123,6 +129,7 @@ export class ChatService {
     }
     return {
       conversationId: row.uuid,
+      channel: row.channel,
       messages: row.messages,
       scamProbability: row.scamProbability,
       status: row.status,
@@ -159,6 +166,7 @@ export class ChatService {
       {
         uuid: conversation.conversationId,
         title,
+        channel: conversation.channel,
         messages: conversation.messages,
         scamProbability: conversation.scamProbability,
         status: conversation.status,

@@ -12,6 +12,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { ChannelEnum } from '../contracts/extract.interface';
 
 export class ExtractMessageDto {
   @IsIn(['user', 'agent'])
@@ -29,6 +30,9 @@ export class ExtractMessageDto {
 export class ExtractConversationInputDto {
   @IsUUID()
   conversationId!: string;
+
+  @IsIn(Object.values(ChannelEnum))
+  channel!: ChannelEnum;
 
   @IsArray()
   @ValidateNested({ each: true })

@@ -1,10 +1,24 @@
+import { Volume2 } from 'lucide-react';
 import { Message } from '@/types/chat';
+import { isTextToSpeechSupported, speak } from '@/lib/speech';
 
 export default function MessageBubble({ message }: { message: Message }) {
   const isScammer = message.sender === 'user';
 
   return (
-    <div className={`flex ${isScammer ? 'justify-start' : 'justify-end'}`}>
+    <div
+      className={`flex items-end gap-1.5 ${isScammer ? 'justify-start' : 'justify-end'}`}
+    >
+      {!isScammer && isTextToSpeechSupported() && (
+        <button
+          type="button"
+          onClick={() => speak(message.text)}
+          title="Play aloud"
+          className="mb-1 shrink-0 rounded-full p-1.5 text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+        >
+          <Volume2 size={13} />
+        </button>
+      )}
       <div
         className={
           isScammer

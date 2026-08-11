@@ -7,6 +7,7 @@ import {
   Index,
 } from 'typeorm';
 import {
+  ChannelEnum,
   ExtractMessage,
   ExtractStatusEnum,
 } from '../../extract/contracts/extract.interface';
@@ -27,6 +28,9 @@ export class ConversationEntity {
 
   @Column({ type: 'varchar', length: 200, nullable: true })
   title!: string | null;
+
+  @Column({ type: 'varchar', length: 20, default: ChannelEnum.Portal })
+  channel!: ChannelEnum;
 
   @Column({ type: 'jsonb', default: '[]' })
   messages!: ExtractMessage[];

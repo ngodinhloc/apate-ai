@@ -5,6 +5,8 @@ export enum StatusEnum {
 
 export type ChatSender = 'user' | 'agent';
 
+export type Channel = 'portal' | 'facebook' | 'whatsapp';
+
 export type AgentStatus = 'isThinking' | 'hasReplied';
 
 export interface Message {
@@ -15,6 +17,7 @@ export interface Message {
 
 export interface Conversation {
   conversationId: string;
+  channel: Channel;
   messages: Message[];
   scamProbability: number;
   status: StatusEnum;

@@ -53,6 +53,7 @@ export class ConversationManager {
 
     const resumed: LiveConversation = {
       conversationId: row.uuid,
+      channel: row.channel,
       messages: row.messages,
       scamProbability: row.scamProbability,
       status: StatusEnum.Inprogress,

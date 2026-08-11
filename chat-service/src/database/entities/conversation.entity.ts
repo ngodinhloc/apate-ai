@@ -6,7 +6,11 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
-import { Message, StatusEnum } from '../../chat/contracts/chat.interface';
+import {
+  ChannelEnum,
+  Message,
+  StatusEnum,
+} from '../../chat/contracts/chat.interface';
 
 @Entity('conversations')
 export class ConversationEntity {
@@ -19,6 +23,9 @@ export class ConversationEntity {
 
   @Column({ type: 'varchar', length: 200, nullable: true })
   title!: string | null;
+
+  @Column({ type: 'varchar', length: 20, default: ChannelEnum.Portal })
+  channel!: ChannelEnum;
 
   @Column({ type: 'jsonb', default: '[]' })
   messages!: Message[];

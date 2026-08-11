@@ -15,7 +15,7 @@ export class ChatController {
 
   @Post()
   create(@Body() dto: ChatMessageDto) {
-    return this.chatService.create(dto.text);
+    return this.chatService.create(dto.text, dto.channel);
   }
 
   @Post(':uuid')

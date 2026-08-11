@@ -3,6 +3,7 @@ import { AppLogger } from '../../../src/common/logger/services/app-logger';
 import { EnvService } from '../../../src/common/env/services/env.service';
 import { AnthropicPricingService } from '../../../src/llm/services/anthropic.pricing';
 import {
+  ChannelEnum,
   ExtractConversationInput,
   ExtractStatusEnum,
 } from '../../../src/extract/contracts/extract.interface';
@@ -23,6 +24,7 @@ describe('AnthropicAdapter', () => {
 
   const conversation: ExtractConversationInput = {
     conversationId: 'conv-1',
+    channel: ChannelEnum.Portal,
     messages: [{ sender: 'user', text: 'hi', timestamp: new Date() }],
     scamProbability: 0.5,
     status: ExtractStatusEnum.NEW,

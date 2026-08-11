@@ -63,6 +63,98 @@ Sample LLM response from extract-service's `AnthropicAdapter.extractBatch` (Sonn
 }
 ```
 
+
+Sample conversation record
+
+```json
+{
+  "conversationId": "238538e3-8fdf-4d15-b856-f20155ad908f",
+  "channel": "portal",
+  "messages": [
+    {
+      "sender": "user",
+      "text": "Hello, this is Sarah from your bank's fraud department. We've detected suspicious activity and your account will be locked in 24 hours unless you verify your details.",
+      "timestamp": "2026-08-11T09:12:03.000Z"
+    },
+    {
+      "sender": "agent",
+      "text": "oh no, is my account actually locked?? what do i need to do to fix it",
+      "timestamp": "2026-08-11T09:12:07.000Z"
+    }
+  ],
+  "scamProbability": 0.91,
+  "status": 1,
+  "createdAt": "2026-08-11T09:12:03.000Z",
+  "modifiedAt": "2026-08-11T09:13:35.000Z"
+}
+```
+
+Sample conversation cache item 
+
+```json
+{
+  "conversationId": "238538e3-8fdf-4d15-b856-f20155ad908f",
+  "channel": "portal",
+  "messages": [
+    {
+      "sender": "user",
+      "text": "Hello, this is Sarah from your bank's fraud department. We've detected suspicious activity and your account will be locked in 24 hours unless you verify your details.",
+      "timestamp": "2026-08-11T09:12:03.000Z"
+    },
+    {
+      "sender": "agent",
+      "text": "oh no, is my account actually locked?? what do i need to do to fix it",
+      "timestamp": "2026-08-11T09:12:07.000Z"
+    }
+  ],
+  "scamProbability": 0.82,
+  "status": 0,
+  "createdAt": "2026-08-11T09:12:03.000Z",
+  "modifiedAt": "2026-08-11T09:12:07.000Z",
+  "agentStatus": "hasReplied"
+}
+```
+
+Sample event
+
+```json
+{
+  "eventName": "apate.conversation.ended",
+  "data": {
+    "conversationId": "238538e3-8fdf-4d15-b856-f20155ad908f",
+    "channel": "portal",
+    "messages": [
+      {
+        "sender": "user",
+        "text": "Hello, this is Sarah from your bank's fraud department. We've detected suspicious activity and your account will be locked in 24 hours unless you verify your details.",
+        "timestamp": "2026-08-11T09:12:03.000Z"
+      },
+      {
+        "sender": "agent",
+        "text": "oh no, is my account actually locked?? what do i need to do to fix it",
+        "timestamp": "2026-08-11T09:12:07.000Z"
+      }
+    ],
+    "scamProbability": 0.91,
+    "status": 1,
+    "createdAt": "2026-08-11T09:12:03.000Z",
+    "modifiedAt": "2026-08-11T09:13:35.000Z"
+  }
+}
+```
+
+### AI Guardrails
+
+- **Input validation** — validates request bodies against DTOs (e.g. `ChatMessageDto`, `ExtractInputDto`) and rejects malformed requests before they reach the LLM.
+- **Role-based injection defense** — persona instructions live in the `system` field; scammer text only ever enters as `user` messages, so it can never overwrite instructions.
+- **Persona prompt with hard limits** — the system prompt instructs the model to stay in character, never reveal it's a bot, and never send or confirm real bank details, PII, or credentials; it only elicits data from the scammer, never invents it.
+- **Extraction prompt guardrails** — the extraction prompt explicitly forbids fabricating values or inferring one data type from another.
+- **Structured output enforcement** — replies and extractions are constrained via `output_config: json_schema` (Zod-defined), not free-form text.
+- **Bounded output** — `max_tokens` on extraction limit.
+- **Model-side refusal handling** — if Claude refuses (`stop_reason === 'refusal'`), chat-service falls back to a scripted in-character reply instead of erroring.
+- **Response validation** — extract-service never trusts the LLM's output as-is: each extracted item is validated against a pre-defined value-object format (e.g. AU bank account, email, PayID regex) before persistence, and invalid items are dropped rather than saved. PayID uses a "multiple-shots" check, trying the email, phone, and ABN formats in turn and accepting a match on any one.
+- **Logging/audit trail** — every LLM call logs cost, tokens, latency, and refusal events.
+
 ### With more time
 
 - **Configurable personas** — support multiple scam-baiter personas (e.g. a busy parent, an elderly user unfamiliar with technology) and have the LLM select the most convincing one from the scammer's opening message. Personas should be stored in the database, not code, so new ones can be added without a deployment.

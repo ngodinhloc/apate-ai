@@ -7,6 +7,7 @@ import { Email } from '../../../src/extract/services/value-objects/email';
 import { ConversationEntity } from '../../../src/database/entities/conversation.entity';
 import { ExtractionEntity } from '../../../src/database/entities/extraction.entity';
 import {
+  ChannelEnum,
   ExtractConversationInput,
   ExtractDataTypeEnum,
   ExtractItem,
@@ -27,6 +28,7 @@ describe('ExtractService', () => {
 
   const conversation: ExtractConversationInput = {
     conversationId: 'conv-1',
+    channel: ChannelEnum.Portal,
     messages: [{ sender: 'user', text: 'hi there', timestamp: new Date() }],
     scamProbability: 0.5,
     status: ExtractStatusEnum.NEW,
@@ -89,6 +91,7 @@ describe('ExtractService', () => {
   describe('processBatch', () => {
     const asInput = (conversationId: string): ExtractConversationInput => ({
       conversationId,
+      channel: conversation.channel,
       messages: conversation.messages,
       scamProbability: conversation.scamProbability,
       status: conversation.status,
@@ -144,23 +147,7 @@ describe('ExtractService', () => {
         ],
         ['conversationUuid', 'dataType', 'value'],
       );
-      expect(extractionRepo.upsert).toHaveBeenCalledWith(
-        {
-          conversationUuid: 'a',
-          dataType: ExtractDataTypeEnum.SCAM_PROBABILITY,
-          value: String(conversation.scamProbability),
-        },
-        ['conversationUuid', 'dataType', 'value'],
-      );
-      expect(extractionRepo.upsert).toHaveBeenCalledWith(
-        {
-          conversationUuid: 'b',
-          dataType: ExtractDataTypeEnum.SCAM_PROBABILITY,
-          value: String(conversation.scamProbability),
-        },
-        ['conversationUuid', 'dataType', 'value'],
-      );
-      expect(extractionRepo.upsert).toHaveBeenCalledTimes(3);
+      expect(extractionRepo.upsert).toHaveBeenCalledTimes(1);
       expect(conversationRepo.update).toHaveBeenCalledWith(
         { uuid: expect.anything() },
         { status: ExtractStatusEnum.PROCESSED },

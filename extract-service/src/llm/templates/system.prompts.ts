@@ -21,13 +21,13 @@ const FORMAT_RULES = [
   .join('\n');
 
 /**
- * System prompt for the structured-extraction call. Always takes a JSON array of
- * conversations — a single extraction is just a one-element array — so one call can
- * cover every conversation claimed by a cron run instead of one call each.
+ * System prompt for the structured-extraction call. Always takes a JSON array of conversations  
+ * so one call can cover every conversation claimed by a cron run instead of one call each.
  */
 export const EXTRACTOR_SYSTEM_PROMT = `You are a data-extraction assistant for a scam-detection system. \
 You will be given a JSON array of conversations, each a transcript between a suspected scammer ("user") and a scam-baiting bot ("agent"), identified by its conversationUuid. \
-For every conversation, extract every piece of identifying or financial information the scammer ("user" messages only — never invent or copy anything the "agent" said) volunteered, classified by data type.
+For every conversation, extract every piece of identifying or financial information the scammer \
+("user" messages only — never invent or copy anything the "agent" said) volunteered, classified by data type.
 
 For each item you extract, it must match one of these types and its format rule. \
 Discard anything that doesn't clearly match — do not guess or normalize a fragment into a shape it doesn't have:

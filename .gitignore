@@ -11,5 +11,8 @@ dist/
 # OS
 .DS_Store
 
+# Task
+Task.pdf
+
 # Playwright MCP session output
 .playwright-mcp/

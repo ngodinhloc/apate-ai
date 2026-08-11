@@ -2,13 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Volume2, VolumeX } from 'lucide-react';
 import ChatInput from './ChatInput';
 import MessageBubble from './MessageBubble';
 import LoadingSkeleton from './LoadingSkeleton';
 import ExtractionsPanel from './ExtractionsPanel';
 import { newChat, continueChat, getChat } from '@/lib/api';
 import { Conversation, Message, StatusEnum } from '@/types/chat';
+import { isTextToSpeechSupported, speak, stopSpeaking } from '@/lib/speech';
 
 function buildWsUrl(): string {
   const base = process.env.NEXT_PUBLIC_WS_URL;
@@ -28,11 +29,44 @@ export default function ScamChat() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
 
   const wsRef = useRef<WebSocket | null>(null);
   const conversationIdRef = useRef<string | null>(null);
   const statusRef = useRef<StatusEnum | null>(null);
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
+  const spokenIdRef = useRef<string | null>(null);
+  const spokenCountRef = useRef(0);
+  // chat-service replies synchronously inside POST /api/chat/, so a
+  // freshly-created conversation's first setConversation() already carries
+  // the agent's reply alongside the user's opening message — set by
+  // handleSend right before that call, so the effect below knows to still
+  // speak that first reply instead of treating it as pre-existing history.
+  const freshConversationRef = useRef(false);
+
+  // Speak new agent replies as they arrive, but never replay a conversation's
+  // existing history when it's first loaded/switched to.
+  useEffect(() => {
+    if (!conversation) return;
+    const { conversationId, messages } = conversation;
+
+    if (spokenIdRef.current !== conversationId) {
+      spokenIdRef.current = conversationId;
+      spokenCountRef.current = freshConversationRef.current
+        ? 1
+        : messages.length;
+      freshConversationRef.current = false;
+    }
+
+    const newMessages = messages.slice(spokenCountRef.current);
+    spokenCountRef.current = messages.length;
+    if (!voiceEnabled) return;
+
+    const lastAgentMessage = [...newMessages]
+      .reverse()
+      .find((m) => m.sender === 'agent');
+    if (lastAgentMessage) speak(lastAgentMessage.text);
+  }, [conversation, voiceEnabled]);
 
   function disconnectWs() {
     if (wsRef.current) {
@@ -48,6 +82,7 @@ export default function ScamChat() {
   // can be resumed without a DB round-trip if the user switches back to it.
   useEffect(() => {
     disconnectWs();
+    stopSpeaking();
     conversationIdRef.current = null;
     statusRef.current = null;
     setConversation(null);
@@ -59,6 +94,7 @@ export default function ScamChat() {
   useEffect(() => {
     if (!chatId) return;
     disconnectWs();
+    stopSpeaking();
     conversationIdRef.current = chatId;
     setError(null);
     setLoading(true);
@@ -76,7 +112,13 @@ export default function ScamChat() {
       .finally(() => setLoading(false));
   }, [chatId]);
 
-  useEffect(() => () => disconnectWs(), []);
+  useEffect(
+    () => () => {
+      disconnectWs();
+      stopSpeaking();
+    },
+    [],
+  );
 
   // The only trigger for ending an in-progress conversation: a real tab
   // close/refresh. sendBeacon is the reliable way to get the request out
@@ -142,6 +184,7 @@ export default function ScamChat() {
         const created = await newChat(text);
         conversationIdRef.current = created.conversationId;
         statusRef.current = created.status;
+        freshConversationRef.current = true;
         setConversation(created);
         subscribe(created.conversationId);
       } else {
@@ -168,6 +211,18 @@ export default function ScamChat() {
     conversationEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation?.messages.length]);
 
+  // Voice mode tracks how the user is actually talking to the agent: typing
+  // and submitting switches back to text, starting a recording switches into
+  // voice — on top of the manual toggle below for an explicit override.
+  function disableVoice() {
+    stopSpeaking();
+    setVoiceEnabled(false);
+  }
+
+  function enableVoice() {
+    setVoiceEnabled(true);
+  }
+
   if (!conversation) {
     return (
       <div className="flex h-full flex-col items-center bg-zinc-50 px-4 pt-16 dark:bg-zinc-950">
@@ -176,7 +231,12 @@ export default function ScamChat() {
             <ShieldAlert size={28} />
             <span className="text-2xl font-bold tracking-tight">Apate AI</span>
           </div>
-          <ChatInput onSend={handleSend} loading={loading} />
+          <ChatInput
+            onSend={handleSend}
+            loading={loading}
+            onManualSubmit={disableVoice}
+            onRecordStart={enableVoice}
+          />
         </div>
       </div>
     );
@@ -185,6 +245,19 @@ export default function ScamChat() {
   return (
     <div className="flex h-full">
       <div className="flex h-full flex-1 flex-col bg-zinc-50 dark:bg-zinc-950">
+        {isTextToSpeechSupported() && (
+          <div className="mx-auto flex w-full max-w-2xl justify-end px-4 pt-4">
+            <button
+              type="button"
+              onClick={() => (voiceEnabled ? disableVoice() : enableVoice())}
+              title={voiceEnabled ? 'Mute agent voice' : 'Unmute agent voice'}
+              className="flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-600 shadow-sm transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              {voiceEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+              {voiceEnabled ? 'Voice on' : 'Voice off'}
+            </button>
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto px-4 py-8">
           <div className="mx-auto max-w-2xl space-y-4">
             {conversation.messages.map((m, i) => (
@@ -206,6 +279,8 @@ export default function ScamChat() {
               onSend={handleSend}
               loading={loading}
               placeholder="Reply as the scammer…"
+              onManualSubmit={disableVoice}
+              onRecordStart={enableVoice}
             />
           </div>
         </div>

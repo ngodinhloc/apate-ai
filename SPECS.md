@@ -30,8 +30,15 @@ interface Message {
   timestamp: date;
 }
 
+enum Channels {
+  portal: 'portal',
+  facebook: 'facbook',
+  whatsapp: 'whatsapp',
+}
+
 interface Conversation {
   conversationId: uuid;
+  channel: Channeles
   messages: Message[];
   scamProbability: number;
   status: StatusEnum;
@@ -79,6 +86,7 @@ table conversations {
   id: int, auto-increment;
   uuid: string;
   title: string;
+  channel: string;
   messages: Message[]; // jsonb
   scam_probability: float; // 0-1
   status: StatusEnum; // smallint
@@ -152,6 +160,7 @@ table conversations {
   id: int, auto-increment;
   uuid: string;
   title: string;
+  channel: string;
   messages: Message[]; // jsonb
   scam_probability: float; // 0-1
   status: ExtractStatusEnum; // smallint

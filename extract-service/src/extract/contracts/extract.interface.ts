@@ -16,6 +16,12 @@ export enum ExtractStatusEnum {
   PROCESSING = 2,
 }
 
+export enum ChannelEnum {
+  Portal = 'portal',
+  Facebook = 'facebook',
+  Whatsapp = 'whatsapp',
+}
+
 export interface ExtractMessage {
   sender: 'user' | 'agent';
   text: string;
@@ -24,6 +30,7 @@ export interface ExtractMessage {
 
 export interface ExtractConversationInput {
   conversationId: string;
+  channel: ChannelEnum;
   messages: ExtractMessage[];
   scamProbability: number;
   status: number;
