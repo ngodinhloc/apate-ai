@@ -179,3 +179,5 @@ docker compose up --build
 - chat-service health: [http://localhost:8000/api/health](http://localhost:8000/api/health)
 - extract-service health: [http://localhost:8001/api/health](http://localhost:8001/api/health)
 
+![screenshot](screenshot.png)
+
